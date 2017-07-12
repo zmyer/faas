@@ -7,7 +7,7 @@ services:
             - "/var/run/docker.sock:/var/run/docker.sock"
         ports:
             - 8080:8080
-        image: functions/gateway:0.5.6
+        image: functions/gateway:async-test
         networks:
             - functions
         environment:
@@ -15,7 +15,15 @@ services:
         deploy:
             placement:
                 constraints: [node.role == manager]
- 
+        depends_on:
+            - nats
+        deploy:
+            restart_policy:
+                condition: on-failure
+                delay: 5s
+                max_attempts: 20
+                window: 380s
+
     prometheus:
         image: functions/prometheus:latest  # autobuild from Dockerfile in repo.
         command: "-config.file=/etc/prometheus/prometheus.yml -storage.local.path=/prometheus -storage.local.memory-chunks=10000 --alertmanager.url=http://alertmanager:9093"
@@ -47,6 +55,24 @@ services:
         deploy:
             placement:
                 constraints: [node.role == manager]
+    nats:
+        image: nats-streaming:0.5.0
+        ports:
+            - 4222:4222
+            - 8222:8222
+        command: "--store memory --cluster_id faas-cluster"
+        networks:
+            - functions
+    queue-worker:
+        image: functions/queue-worker
+        networks:
+            - functions
+        deploy:
+            restart_policy:
+                condition: on-failure
+                delay: 5s
+                max_attempts: 20
+                window: 380s
 
     # Sample functions go here.
 

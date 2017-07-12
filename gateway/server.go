@@ -12,7 +12,9 @@ import (
 	"github.com/docker/docker/client"
 
 	"fmt"
+	"os"
 
+	"github.com/alexellis/faas/gateway/queue"
 	"github.com/gorilla/mux"
 )
 
@@ -36,11 +38,25 @@ func main() {
 	metrics.RegisterMetrics(metricsOptions)
 
 	r := mux.NewRouter()
-	// r.StrictSlash(false)	// This didn't work, so register routes twice.
+
+	natsAddress, hasEnv := os.LookupEnv("nats_address")
+	if hasEnv == false {
+		natsAddress = "nats"
+	}
+
+	canQueueRequests, createErr := queue.CreateNatsQueue(natsAddress, 4222)
+	if createErr != nil {
+		log.Panicln(createErr.Error())
+	}
 
 	functionHandler := faasHandlers.MakeProxy(metricsOptions, true, dockerClient, &logger)
+	queuedHandler := faasHandlers.MakeQueuedProxy(metricsOptions, true, dockerClient, &logger, canQueueRequests)
+
+	// r.StrictSlash(false)	// This didn't work, so register routes twice.
 	r.HandleFunc("/function/{name:[-a-zA-Z_0-9]+}", functionHandler)
 	r.HandleFunc("/function/{name:[-a-zA-Z_0-9]+}/", functionHandler)
+
+	r.HandleFunc("/async-function/{name:[-a-zA-Z_0-9]+}/", queuedHandler)
 
 	r.HandleFunc("/system/alert", faasHandlers.MakeAlertHandler(dockerClient))
 	r.HandleFunc("/system/functions", faasHandlers.MakeFunctionReader(metricsOptions, dockerClient)).Methods("GET")
