@@ -7,7 +7,7 @@ services:
             - "/var/run/docker.sock:/var/run/docker.sock"
         ports:
             - 8080:8080
-        image: functions/gateway:latest-dev
+        image: functions/gateway:async-test
         networks:
             - functions
         environment:
@@ -64,7 +64,7 @@ services:
         networks:
             - functions
     queue-worker:
-        image: functions/queue-worker:latest-dev
+        image: functions/queue-worker
         networks:
             - functions
         deploy:
