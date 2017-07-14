@@ -63,6 +63,8 @@ func main() {
 	r.HandleFunc("/system/functions", faasHandlers.MakeNewFunctionHandler(metricsOptions, dockerClient)).Methods("POST")
 	r.HandleFunc("/system/functions", faasHandlers.MakeDeleteFunctionHandler(metricsOptions, dockerClient)).Methods("DELETE")
 
+	r.HandleFunc("/system/async-report", faasHandlers.MakeAsyncReport(metricsOptions)).Methods("POST")
+
 	fs := http.FileServer(http.Dir("./assets/"))
 	r.PathPrefix("/ui/").Handler(http.StripPrefix("/ui", fs)).Methods("GET")
 

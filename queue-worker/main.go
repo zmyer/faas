@@ -14,6 +14,7 @@ import (
 	"net/http"
 
 	"github.com/alexellis/faas/gateway/queue"
+	"github.com/alexellis/faas/gateway/requests"
 	"github.com/nats-io/go-nats-streaming"
 )
 
@@ -61,17 +62,21 @@ func main() {
 		i++
 		printMsg(msg, i)
 
+		started := time.Now()
+
 		req := queue.Request{}
 		json.Unmarshal(msg.Data, &req)
 		fmt.Printf("Request for %s.\n", req.Function)
-		urlFunction := fmt.Sprintf("http://%s:8081/", req.Function)
+		urlFunction := fmt.Sprintf("http://%s:8080/", req.Function)
 
 		request, err := http.NewRequest("POST", urlFunction, bytes.NewReader(req.Body))
 		res, err := client.Do(request)
 
 		if err != nil {
 			log.Println(err)
+			timeTaken := time.Since(started).Seconds()
 
+			postReport(&client, req.Function, http.StatusServiceUnavailable, timeTaken)
 			return
 		}
 
@@ -83,12 +88,19 @@ func main() {
 			}
 			fmt.Println(string(resData))
 		}
-		fmt.Println(res.Status, err)
+		timeTaken := time.Since(started).Seconds()
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(res.Status)
+
+		postReport(&client, req.Function, res.StatusCode, timeTaken)
 
 	}
-	subj := "faas-request"
 
+	subj := "faas-request"
 	qgroup = "faas"
+
 	sub, err := sc.QueueSubscribe(subj, qgroup, mcb, startOpt, stan.DurableName(durable))
 	if err != nil {
 		log.Panicln(err)
@@ -113,38 +125,22 @@ func main() {
 		}
 	}()
 	<-cleanupDone
+}
 
-	// nc.QueueSubscribe(subj, queue, func(msg *nats.Msg) {
-	// 	i++
-	// 	printMsg(msg, i)
+func postReport(client *http.Client, function string, statusCode int, timeTaken float64) {
+	req := requests.AsyncReport{
+		FunctionName: function,
+		StatusCode:   statusCode,
+		TimeTaken:    timeTaken,
+	}
 
-	// 	req := gqueue.Request{}
-	// 	json.Unmarshal(msg.Data, &req)
-	// 	fmt.Printf("Request for %s.\n", req.Function)
-	// 	urlFunction := fmt.Sprintf("http://%s:8081/", req.Function)
+	reqBytes, _ := json.Marshal(req)
+	request, err := http.NewRequest("POST", "http://gateway:8080/system/async-report", bytes.NewReader(reqBytes))
+	res, err := client.Do(request)
 
-	// 	request, err := http.NewRequest("POST", urlFunction, bytes.NewReader(req.Body))
-	// 	res, err := client.Do(request)
+	if err != nil {
+		log.Println(err)
+	}
+	log.Printf("Posting report - %d\n", res.StatusCode)
 
-	// 	if res.Body != nil {
-	// 		defer res.Body.Close()
-	// 		resData, err := ioutil.ReadAll(res.Body)
-	// 		if err != nil {
-	// 			log.Println(err)
-	// 		}
-	// 		fmt.Println(string(resData))
-	// 	}
-	// 	fmt.Println(res.Status, err)
-
-	// })
-	// nc.Flush()
-
-	// if err := nc.LastError(); err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// log.Printf("Listening on [%s]\n", subj)
-	// log.SetFlags(log.LstdFlags)
-
-	// runtime.Goexit()
 }

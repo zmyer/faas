@@ -16,9 +16,12 @@ import (
 
 	"os"
 
+	"encoding/json"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/alexellis/faas/gateway/metrics"
 	"github.com/alexellis/faas/gateway/queue"
+	"github.com/alexellis/faas/gateway/requests"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -104,19 +107,6 @@ func MakeProxy(metrics metrics.MetricOptions, wildcard bool, client *client.Clie
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}
-}
-
-func writeHead(service string, metrics metrics.MetricOptions, code int, w http.ResponseWriter) {
-	w.WriteHeader(code)
-
-	metrics.GatewayFunctionInvocation.With(prometheus.Labels{"function_name": service, "code": strconv.Itoa(code)}).Inc()
-
-	// metrics.GatewayFunctionInvocation.WithLabelValues(service).Add(1)
-}
-
-func trackTime(then time.Time, metrics metrics.MetricOptions, name string) {
-	since := time.Since(then)
-	metrics.GatewayFunctionsHistogram.WithLabelValues(name).Observe(since.Seconds())
 }
 
 func lookupInvoke(w http.ResponseWriter, r *http.Request, metrics metrics.MetricOptions, name string, c *client.Client, logger *logrus.Logger, proxyClient *http.Client) {
@@ -227,4 +217,31 @@ func copyHeaders(destination *http.Header, source *http.Header) {
 func randomInt(min, max int) int {
 	rand.Seed(time.Now().Unix())
 	return rand.Intn(max-min) + min
+}
+
+func writeHead(service string, metrics metrics.MetricOptions, code int, w http.ResponseWriter) {
+	w.WriteHeader(code)
+
+	track(service, metrics, code)
+}
+
+func track(service string, metrics metrics.MetricOptions, code int) {
+	metrics.GatewayFunctionInvocation.With(prometheus.Labels{"function_name": service, "code": strconv.Itoa(code)}).Inc()
+}
+
+func trackTime(then time.Time, metrics metrics.MetricOptions, name string) {
+	since := time.Since(then)
+	metrics.GatewayFunctionsHistogram.WithLabelValues(name).Observe(since.Seconds())
+}
+
+func MakeAsyncReport(metrics metrics.MetricOptions) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+
+		report := requests.AsyncReport{}
+		bytesOut, _ := ioutil.ReadAll(r.Body)
+		json.Unmarshal(bytesOut, &report)
+
+		track(report.FunctionName, metrics, report.StatusCode)
+	}
 }

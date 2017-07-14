@@ -3,6 +3,7 @@ RUN mkdir -p /go/src/github.com/alexellis/faas/watchdog
 WORKDIR /go/src/github.com/alexellis/faas/watchdog
 
 COPY main.go        .
+COPY handler.go     .
 COPY readconfig.go  .
 COPY config_test.go .
 COPY requesthandler_test.go .
