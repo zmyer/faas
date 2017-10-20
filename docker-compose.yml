@@ -5,7 +5,7 @@ services:
             - "/var/run/docker.sock:/var/run/docker.sock"
         ports:
             - 8080:8080
-        image: functions/gateway:dev
+        image: functions/gateway:dev1
         networks:
             - functions
         environment:
@@ -86,7 +86,6 @@ services:
                 constraints:
                     - 'node.platform.os == linux'
 
-
     # Node.js gives OS info about the node (Host)
     nodeinfo:
         image: functions/nodeinfo:latest
@@ -103,6 +102,7 @@ services:
             placement:
                 constraints:
                     - 'node.platform.os == linux'
+
 
 
     # Uses `cat` to echo back response, fastest function to execute.
@@ -123,80 +123,6 @@ services:
                 constraints:
                     - 'node.platform.os == linux'
 
-
-    # Counts words in request with `wc` utility
-    wordcount:
-        image: functions/alpine:health
-        labels:
-            function: "true"
-            com.faas.max_replicas: "10"
-        depends_on:
-            - gateway
-        networks:
-            - functions
-        environment:
-            fprocess: "wc"
-            no_proxy: "gateway"
-            https_proxy: $https_proxy
-        deploy:
-            placement:
-                constraints:
-                    - 'node.platform.os == linux'
-
-
-    # Calculates base64 representation of request body.
-    base64:
-        image: functions/alpine:health
-        labels:
-            function: "true"
-        depends_on:
-            - gateway
-        networks:
-            - functions
-        environment:
-            fprocess: "base64"
-            no_proxy: "gateway"
-            https_proxy: $https_proxy
-        deploy:
-            placement:
-                constraints:
-                    - 'node.platform.os == linux'
-
-
-    # Decodes base64 representation of request body.
-    decodebase64:
-        image: functions/alpine:health
-        labels:
-            function: "true"
-        depends_on:
-            - gateway
-        networks:
-            - functions
-        environment:
-            fprocess: "base64 -d"
-            no_proxy: "gateway"
-            https_proxy: $https_proxy
-        deploy:
-            placement:
-                constraints:
-                    - 'node.platform.os == linux'
-
-    # Converts body in (markdown format) -> (html)
-    markdown:
-        image: alexellis2/faas-markdownrender:latest
-        labels:
-            function: "true"
-        depends_on:
-            - gateway
-        networks:
-            - functions
-        environment:
-            no_proxy: "gateway"
-            https_proxy: $https_proxy
-        deploy:
-            placement:
-                constraints:
-                    - 'node.platform.os == linux'
 
 networks:
     functions:

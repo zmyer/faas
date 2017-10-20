@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -19,8 +20,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/gorilla/mux"
+
 	"github.com/openfaas/faas/gateway/metrics"
 	"github.com/openfaas/faas/gateway/requests"
 	"github.com/prometheus/client_golang/prometheus"
@@ -78,7 +81,7 @@ func MakeProxy(metrics metrics.MetricOptions, wildcard bool, client *client.Clie
 }
 
 func lookupInvoke(w http.ResponseWriter, r *http.Request, metrics metrics.MetricOptions, name string, c *client.Client, logger *logrus.Logger, proxyClient *http.Client) {
-	exists, err := lookupSwarmService(name, c)
+	exists, replicas, serviceID, err := lookupSwarmService(name, c)
 
 	if err != nil || exists == false {
 		if err != nil {
@@ -91,6 +94,11 @@ func lookupInvoke(w http.ResponseWriter, r *http.Request, metrics metrics.Metric
 	}
 
 	if exists {
+
+		if replicas == 0 {
+			jitScale(c, name, serviceID)
+		}
+
 		defer trackTime(time.Now(), metrics, name)
 		forwardReq := requests.NewForwardRequest(r.Method, *r.URL)
 
@@ -99,13 +107,56 @@ func lookupInvoke(w http.ResponseWriter, r *http.Request, metrics metrics.Metric
 	}
 }
 
-func lookupSwarmService(serviceName string, c *client.Client) (bool, error) {
+func jitScale(c *client.Client, serviceName string, serviceID string) {
+	serviceQuery := NewSwarmServiceQuery(c)
+	serviceQuery.SetReplicas(serviceName, 1)
+	filters1 := filters.NewArgs()
+	filters1.Add("service", serviceID)
+
+	taskListOptions := types.TaskListOptions{
+		Filters: filters1,
+	}
+
+	context1 := context.Background()
+	maxAttempts := 120
+	for i := 0; i < maxAttempts; i++ {
+		tasks, err := c.TaskList(context1, taskListOptions)
+		if err != nil {
+			log.Println(err)
+		}
+		if len(tasks) > 0 {
+			for id, task := range tasks {
+				log.Printf("Task: %d got: %s want: %s, %t\n", id, string(task.Status.State), string(swarm.TaskStateRunning), (string(task.Status.State) == string(swarm.TaskStateRunning)))
+				if string(task.Status.State) == string(swarm.TaskStateRunning) {
+					log.Printf("A task is running.\n")
+					return
+				}
+			}
+		}
+
+		log.Printf("Trying to scale up to one replica.\n")
+		time.Sleep(time.Millisecond * 100)
+	}
+}
+
+func lookupSwarmService(serviceName string, c *client.Client) (bool, int, string, error) {
 	fmt.Printf("Resolving: '%s'\n", serviceName)
 	serviceFilter := filters.NewArgs()
 	serviceFilter.Add("name", serviceName)
 	services, err := c.ServiceList(context.Background(), types.ServiceListOptions{Filters: serviceFilter})
 
-	return len(services) > 0, err
+	replicas := 0
+	var serviceID string
+	if len(services) > 0 {
+		serviceID = services[0].ID
+		if services[0].Spec.Mode.Replicated != nil {
+			if services[0].Spec.Mode.Replicated.Replicas != nil {
+				replicas = int(*services[0].Spec.Mode.Replicated.Replicas)
+			}
+		}
+	}
+
+	return len(services) > 0, replicas, serviceID, err
 }
 
 func invokeService(w http.ResponseWriter, r *http.Request, metrics metrics.MetricOptions, service string, forwardReq requests.ForwardRequest, requestBody []byte, logger *logrus.Logger, proxyClient *http.Client) {
