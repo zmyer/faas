@@ -11,9 +11,10 @@ import (
 
 // MetricOptions to be used by web handlers
 type MetricOptions struct {
-	GatewayFunctionInvocation *prometheus.CounterVec
-	GatewayFunctionsHistogram *prometheus.HistogramVec
-	ServiceReplicasCounter    *prometheus.GaugeVec
+	GatewayFunctionInvocation        *prometheus.CounterVec
+	GatewayFunctionsHistogram        *prometheus.HistogramVec
+	ServiceReplicasCounter           *prometheus.GaugeVec
+	GatewayFunctionsContentHistogram *prometheus.GaugeVec
 }
 
 // PrometheusHandler Bootstraps prometheus for metrics collection
@@ -23,6 +24,14 @@ func PrometheusHandler() http.Handler {
 
 // BuildMetricsOptions builds metrics for tracking functions in the API gateway
 func BuildMetricsOptions() MetricOptions {
+	gatewayFunctionsContentLengthCounter := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gateway_functions_response_length",
+			Help: "Function response content-length",
+		},
+		[]string{"function_name"},
+	)
+
 	gatewayFunctionsHistogram := prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name: "gateway_functions_seconds",
 		Help: "Function time taken",
@@ -45,9 +54,10 @@ func BuildMetricsOptions() MetricOptions {
 	)
 
 	metricsOptions := MetricOptions{
-		GatewayFunctionsHistogram: gatewayFunctionsHistogram,
-		GatewayFunctionInvocation: gatewayFunctionInvocation,
-		ServiceReplicasCounter:    serviceReplicas,
+		GatewayFunctionsHistogram:        gatewayFunctionsHistogram,
+		GatewayFunctionInvocation:        gatewayFunctionInvocation,
+		ServiceReplicasCounter:           serviceReplicas,
+		GatewayFunctionsContentHistogram: gatewayFunctionsContentLengthCounter,
 	}
 
 	return metricsOptions
@@ -58,4 +68,5 @@ func RegisterMetrics(metricsOptions MetricOptions) {
 	prometheus.Register(metricsOptions.GatewayFunctionInvocation)
 	prometheus.Register(metricsOptions.GatewayFunctionsHistogram)
 	prometheus.Register(metricsOptions.ServiceReplicasCounter)
+	prometheus.Register(metricsOptions.GatewayFunctionsContentHistogram)
 }

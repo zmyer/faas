@@ -164,6 +164,8 @@ func invokeService(w http.ResponseWriter, r *http.Request, metrics metrics.Metri
 
 	w.Header().Set("Content-Type", GetContentType(response.Header, r.Header, defaultHeader))
 
+	metrics.GatewayFunctionsContentHistogram.WithLabelValues(service).Set(float64(response.ContentLength))
+
 	writeHead(service, metrics, response.StatusCode, w)
 	if response.Body != nil {
 		io.Copy(w, response.Body)
