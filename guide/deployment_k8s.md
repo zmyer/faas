@@ -182,3 +182,48 @@ The function can also be invoked through the CLI:
 $ echo -n "" | faas-cli invoke --gateway http://kubernetes-ip:31112 nodeinfo
 $ echo -n "verbose" | faas-cli invoke --gateway http://kubernetes-ip:31112 nodeinfo
 ```
+
+### 4.0 Advanced
+
+* Secrets
+
+You can use Kubernetes secrets from your function. Just define a secret in your cluster and then add that to the `secrets` section of your OpenFaaS YAML stack file.
+
+Doc: [Create secrets in Kubernetes](https://kubernetes.io/docs/concepts/configuration/secret/#creating-a-secret-using-kubectl-create-secret)
+
+i.e.
+
+```
+$ echo -n "1f2d1e2e67df" > ./api_token_1 \
+  && kubectl create secret generic api-token-1 --from-file=./api_token_1
+secret "api-token-1" created
+```
+
+Create a function:
+
+```
+$ faas new secured --lang python
+
+cat ./secured.yml
+
+provider:
+  name: faas
+  gateway: http://localhost:8080
+
+functions:
+  secured:
+    lang: python
+    handler: ./secured
+    image: secured
+    secrets:
+     - api_token_1
+```
+
+Then within your code the secrets are mounted at `/var/run/secrets/` so you'd want to read in the file `/var/run/secrets/api-token-1`
+
+```
+def handle(st):
+    f = open("/var/run/secrets/api-token-1", "r")
+    token = f.read()
+    print("Using token: ", token)
+```
