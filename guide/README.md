@@ -1,9 +1,13 @@
 OpenFaaS guides & documentation
 ================
 
-This page is a collection of our key blog posts, tutorials and guides while we prepare a [dedicated site](https://github.com/openfaas/faas/issues/253) for documentation. For other queries please get in touch for a Slack invite or ping [@openfaas](https://twitter.com/openfaas) on Twitter.
+## This page is deprecated.
 
-> There is a PR underway for the new [documentation site](https://github.com/openfaas/faas/pull/274)
+Please see the [OpenFaaS docs site](https://docs.openfaas.com/).
+
+## For archival purposes
+
+This page is a collection of our key blog posts, tutorials and guides while we prepare a [dedicated site](https://github.com/openfaas/faas/issues/253) for documentation. For other queries please get in touch for a Slack invite or ping [@openfaas](https://twitter.com/openfaas) on Twitter.
 
 Suggestions for new topics are welcome. Please also check the [Issue tracker](https://github.com/openfaas/faas/issues).
 
@@ -65,9 +69,9 @@ These instructions are for a development environment. If you plan to expose Open
 
 * [Serverless sorcery with ImageMagick](https://blog.alexellis.io/serverless-imagemagick/)
 
-### Fine-tuning / high-throughput
+### High-throughput
 
-* [OpenFaaS accelerates serverless Java with AfterBurn](https://blog.alexellis.io/openfaas-serverless-acceleration/)
+* [Next-generation Watchdog (of-watchdog)](http://docs.openfaas.com/architecture/watchdog/#of-watchdog)
 
 ### Raspberry Pi & ARM
 
@@ -76,3 +80,9 @@ These instructions are for a development environment. If you plan to expose Open
 ## Extend OpenFaaS
 
 * [Build a third-party provider](backends.md)
+
+### Deprecated
+
+Afterburn is replaced by the of-watchdog listed above.
+
+* [OpenFaaS accelerates serverless Java with AfterBurn](https://blog.alexellis.io/openfaas-serverless-acceleration/)

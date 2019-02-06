@@ -28,42 +28,47 @@ func parseBoolValue(val string) bool {
 	return false
 }
 
-func parseIntValue(val string) int {
+func parseIntOrDurationValue(val string, fallback time.Duration) time.Duration {
 	if len(val) > 0 {
 		parsedVal, parseErr := strconv.Atoi(val)
-
 		if parseErr == nil && parsedVal >= 0 {
+			return time.Duration(parsedVal) * time.Second
+		}
+	}
 
+	duration, durationErr := time.ParseDuration(val)
+	if durationErr != nil {
+		return fallback
+	}
+	return duration
+}
+
+func parseIntValue(val string, fallback int) int {
+	if len(val) > 0 {
+		parsedVal, parseErr := strconv.Atoi(val)
+		if parseErr == nil && parsedVal >= 0 {
 			return parsedVal
 		}
 	}
-	return 0
+
+	return fallback
 }
 
 // Read fetches config from environmental variables.
 func (ReadConfig) Read(hasEnv HasEnv) WatchdogConfig {
 	cfg := WatchdogConfig{
-		writeDebug: false,
-		cgiHeaders: true,
+		writeDebug:    false,
+		cgiHeaders:    true,
+		combineOutput: true,
 	}
 
 	cfg.faasProcess = hasEnv.Getenv("fprocess")
 
-	readTimeout := parseIntValue(hasEnv.Getenv("read_timeout"))
-	writeTimeout := parseIntValue(hasEnv.Getenv("write_timeout"))
+	cfg.readTimeout = parseIntOrDurationValue(hasEnv.Getenv("read_timeout"), time.Second*5)
+	cfg.writeTimeout = parseIntOrDurationValue(hasEnv.Getenv("write_timeout"), time.Second*5)
 
-	cfg.execTimeout = time.Duration(parseIntValue(hasEnv.Getenv("exec_timeout"))) * time.Second
-
-	if readTimeout == 0 {
-		readTimeout = 5
-	}
-
-	if writeTimeout == 0 {
-		writeTimeout = 5
-	}
-
-	cfg.readTimeout = time.Duration(readTimeout) * time.Second
-	cfg.writeTimeout = time.Duration(writeTimeout) * time.Second
+	cfg.execTimeout = parseIntOrDurationValue(hasEnv.Getenv("exec_timeout"), time.Second*0)
+	cfg.port = parseIntValue(hasEnv.Getenv("port"), 8080)
 
 	writeDebugEnv := hasEnv.Getenv("write_debug")
 	if isBoolValueSet(writeDebugEnv) {
@@ -81,6 +86,10 @@ func (ReadConfig) Read(hasEnv HasEnv) WatchdogConfig {
 	cfg.suppressLock = parseBoolValue(hasEnv.Getenv("suppress_lock"))
 
 	cfg.contentType = hasEnv.Getenv("content_type")
+
+	if isBoolValueSet(hasEnv.Getenv("combine_output")) {
+		cfg.combineOutput = parseBoolValue(hasEnv.Getenv("combine_output"))
+	}
 
 	return cfg
 }
@@ -117,4 +126,10 @@ type WatchdogConfig struct {
 
 	// contentType forces a specific pre-defined value for all responses
 	contentType string
+
+	// port for HTTP server
+	port int
+
+	// combineOutput combines stderr and stdout in response
+	combineOutput bool
 }

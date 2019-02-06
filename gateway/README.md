@@ -6,11 +6,12 @@ The gateway will scale functions according to demand by altering the service rep
 
 In summary:
 
-* UI built-in
-* Deploy your own functions or from the Function Store
+* Built-in UI Portal
+* Deploy functions from the Function Store or deploy your own
 * Instrumentation via Prometheus
-* Autoscaling via AlertManager
-* REST API available
+* Auto-scaling via AlertManager and Prometheus
+* Scaling up from zero
+* REST API available documented with Swagger
 
 ![](https://raw.githubusercontent.com/openfaas/faas/master/docs/of-overview.png)
 
@@ -23,6 +24,24 @@ Providers for functions can be written using the [faas-provider](https://github.
 ## REST API
 
 Swagger docs: https://github.com/openfaas/faas/tree/master/api-docs
+
+## CORS
+
+By default the only CORS path allowed is for the Function Store which is served from the GitHub RAW CDN.
+
+## UI Portal
+
+The built-in UI Portal is served through static files bound at the /ui/ path.
+
+The UI was written in Angular 1.x and makes uses of jQuery for interactions and the Angular Material theme for visual effects and components.
+
+View the source in the [assets](./assets/) folder.
+
+### Function Store
+
+The Function Store is rendered through a static JSON file served by the GitHub RAW CDN. The Function Store can also be used via the [OpenFaaS CLI](https://github.com/openfaas/faas-cli).
+
+See the [openfaas/store](https://github.com/openfaas/store) repo for more.
 
 ## Logs
 
@@ -48,7 +67,12 @@ The gateway can be configured through the following environment variables:
 | `write_timeout`        | HTTP timeout for writing a response body from your function (in seconds). Default: `8`  |
 | `read_timeout`         | HTTP timeout for reading the payload from the client caller (in seconds). Default: `8` |
 | `functions_provider_url`             | URL of upstream [functions provider](https://github.com/openfaas/faas-provider/) - i.e. Swarm, Kubernetes, Nomad etc  |
-| `faas_nats_address`          | Address of NATS service. Required for asynchronous mode. |
-| `faas_nats_port`    | Port for NATS service. Requrired for asynchronous mode. |
-| `faas_prometheus_host`         | Host to connect to Prometheus. Default: `"prometheus"`.  |
-| `faas_promethus_port`         | Port to connect to Prometheus. Default: `9090`. |
+| `faas_nats_address`          | Address of NATS service. Required for asynchronous mode |
+| `faas_nats_port`    | Port for NATS service. Requrired for asynchronous mode |
+| `faas_prometheus_host`         | Host to connect to Prometheus. Default: `"prometheus"` |
+| `faas_promethus_port`         | Port to connect to Prometheus. Default: `9090` |
+| `direct_functions`            | `true` or `false` -  functions are invoked directly over overlay network by DNS name without passing through the provider |
+| `direct_functions_suffix`     | Provide a DNS suffix for invoking functions directly over overlay network  |
+| `basic_auth`              | Set to `true` or `false` to enable embedded basic auth on the /system and /ui endpoints (recommended) |
+| `secret_mount_path`       | Set a location where you have mounted `basic-auth-user` and `basic-auth-password`, default: `/run/secrets/`. |
+| `scale_from_zero`       | Enables an intercepting proxy which will scale any function from 0 replicas to the desired amount |

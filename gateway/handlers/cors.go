@@ -1,3 +1,6 @@
+// Copyright (c) OpenFaaS Author(s). All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 package handlers
 
 import "net/http"
@@ -11,7 +14,7 @@ type CORSHandler struct {
 func (c CORSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// https://raw.githubusercontent.com/openfaas/store/master/store.json
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	w.Header().Set("Access-Control-Allow-Methods", "GET")
+	w.Header().Set("Access-Control-Allow-Methods", http.MethodGet)
 	w.Header().Set("Access-Control-Allow-Origin", c.AllowedHost)
 
 	(*c.Upstream).ServeHTTP(w, r)
